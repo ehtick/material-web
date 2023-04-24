@@ -9,6 +9,7 @@ import {customElement} from 'lit/decorators.js';
 import {ifDefined} from 'lit/directives/if-defined.js';
 
 import {Environment} from '../../testing/environment.js';
+import {Harness} from '../../testing/harness.js';
 
 import {Switch} from './switch.js';
 
@@ -35,6 +36,12 @@ function renderSwitch(propsInit: Partial<TestSwitch> = {}) {
 function renderSwitchInForm(propsInit: Partial<TestSwitch> = {}) {
   return html`
     <form>${renderSwitch(propsInit)}</form>
+  `;
+}
+
+function renderSwitchInLabel(propsInit: Partial<TestSwitch> = {}) {
+  return html`
+    <label>${renderSwitch(propsInit)}</label>
   `;
 }
 
@@ -77,14 +84,6 @@ describe('md-switch', () => {
       expect(selectedButton.getAttribute('aria-checked')).toEqual('true');
     });
 
-    it('sets checked of hidden input', () => {
-      const toggleInput = toggle.shadowRoot!.querySelector('input')!;
-      expect(toggleInput.checked).toBeFalse();
-
-      const selectedInput = selected.shadowRoot!.querySelector('input')!;
-      expect(selectedInput.checked).toBeTrue();
-    });
-
     it('adds md3-switch--selected class when true', () => {
       const toggleRoot = toggle.shadowRoot!.querySelector('.md3-switch')!;
       expect(Array.from(toggleRoot.classList))
@@ -103,12 +102,6 @@ describe('md-switch', () => {
       const selectedRoot = selected.shadowRoot!.querySelector('.md3-switch')!;
       expect(Array.from(selectedRoot.classList))
           .not.toContain('md3-switch--unselected');
-    });
-  });
-
-  describe('processing', () => {
-    it('is false by default', () => {
-      expect(toggle.processing).toBeFalse();
     });
   });
 
@@ -175,12 +168,6 @@ describe('md-switch', () => {
   });
 
   describe('name', () => {
-    let named: TestSwitch;
-
-    beforeEach(async () => {
-      named = await switchElement({name: 'foo'});
-    });
-
     it('is an empty string by default', () => {
       expect(toggle.name).toEqual('');
     });
@@ -190,27 +177,11 @@ describe('md-switch', () => {
       await toggle.updateComplete;
       expect(toggle.getAttribute('name')).toEqual('foo');
     });
-
-    it('sets name of hidden input', () => {
-      const input = named.shadowRoot!.querySelector('input')!;
-      expect(input.getAttribute('name')).toEqual('foo');
-    });
   });
 
   describe('value', () => {
-    let withValue: TestSwitch;
-
-    beforeEach(async () => {
-      withValue = await switchElement({value: 'bar'});
-    });
-
     it('is "on" by default', () => {
       expect(toggle.value).toEqual('on');
-    });
-
-    it('sets value of hidden input', () => {
-      const input = withValue.shadowRoot!.querySelector('input')!;
-      expect(input.value).toEqual('bar');
     });
   });
 
@@ -227,60 +198,55 @@ describe('md-switch', () => {
       toggle.click();
       expect(toggle.selected).withContext('should remain false').toBeFalse();
     });
-
-    it('does not focus or click hidden input form element', () => {
-      const input = toggle.shadowRoot!.querySelector('input')!;
-      spyOn(input, 'focus');
-      spyOn(input, 'click');
-      toggle.click();
-      expect(input.focus).not.toHaveBeenCalled();
-      expect(input.click).not.toHaveBeenCalled();
-    });
   });
 
   describe('form submission', () => {
-    let form: HTMLFormElement;
-
-    // TODO(b/235238545): replace with shared FormController tests.
-    function simulateFormDataEvent() {
-      const event = new Event('formdata');
-      // new FormData(form) will send a 'formdata' event and coallesce the
-      // additions, but this only works in Chrome and Firefox
-      const formData = new FormData();
-      (event as FormDataEvent as any).formData = formData;
-      form.dispatchEvent(event);
-      return formData;
+    async function switchInForm(
+        propsInit: Partial<TestSwitch> = {}, template = renderSwitchInForm) {
+      const element = await switchElement(propsInit, template);
+      return new Harness(element);
     }
 
     it('does not submit if not selected', async () => {
-      toggle = await switchElement({name: 'foo'}, renderSwitchInForm);
-      form = toggle.parentElement as HTMLFormElement;
-      const formData = simulateFormDataEvent();
+      const harness = await switchInForm({name: 'foo'});
+      const formData = await harness.submitForm();
       expect(formData.get('foo')).toBeNull();
     });
 
     it('does not submit if disabled', async () => {
-      toggle = await switchElement(
-          {name: 'foo', selected: true, disabled: true}, renderSwitchInForm);
-      form = toggle.parentElement as HTMLFormElement;
-      const formData = simulateFormDataEvent();
+      const harness =
+          await switchInForm({name: 'foo', selected: true, disabled: true});
+      const formData = await harness.submitForm();
       expect(formData.get('foo')).toBeNull();
     });
 
     it('does not submit if name is not provided', async () => {
-      toggle = await switchElement({selected: true}, renderSwitchInForm);
-      form = toggle.parentElement as HTMLFormElement;
-      const formData = simulateFormDataEvent();
+      const harness = await switchInForm({selected: true});
+      const formData = await harness.submitForm();
       const keys = Array.from(formData.keys());
       expect(keys.length).toEqual(0);
     });
 
     it('submits under correct conditions', async () => {
-      toggle = await switchElement(
-          {name: 'foo', selected: true, value: 'bar'}, renderSwitchInForm);
-      form = toggle.parentElement as HTMLFormElement;
-      const formData = simulateFormDataEvent();
+      const harness =
+          await switchInForm({name: 'foo', selected: true, value: 'bar'});
+      const formData = await harness.submitForm();
       expect(formData.get('foo')).toEqual('bar');
+    });
+
+    describe('label activation', () => {
+      let label: HTMLLabelElement;
+
+      it('toggles when label is clicked', async () => {
+        toggle = await switchElement({}, renderSwitchInLabel);
+        label = toggle.parentElement as HTMLLabelElement;
+        label.click();
+        await env.waitForStability();
+        expect(toggle.selected).toBeTrue();
+        label.click();
+        await env.waitForStability();
+        expect(toggle.selected).toBeFalse();
+      });
     });
   });
 });

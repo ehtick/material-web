@@ -3,13 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-@use '../../tokens';
+// go/keep-sorted start
 @use './checkbox';
-@use './checkbox-theme';
+// go/keep-sorted end
 
-:host {
-  @include checkbox-theme.theme-styles(tokens.md-comp-checkbox-values());
-  @include checkbox.static-styles();
-
-  display: inline-flex;
-}
+@include checkbox.styles;

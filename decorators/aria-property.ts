@@ -23,8 +23,7 @@ import {ReactiveElement} from 'lit';
  * ```ts
  * class MyElement extends LitElement {
  *   \@ariaProperty
- *   // TODO(b/210730484): replace with @soyParam annotation
- *   \@property({ type: String, attribute: 'data-aria-label', noAccessor: true})
+ *   \@property({attribute: 'data-aria-label', noAccessor: true})
  *   ariaLabel!: string;
  * }
  * ```

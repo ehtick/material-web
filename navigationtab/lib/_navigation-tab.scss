@@ -6,14 +6,17 @@
 // stylelint-disable selector-class-pattern --
 // Selector '.md3-*' should only be used in this project.
 
+// go/keep-sorted start
 @use 'sass:map';
-
+// go/keep-sorted end
+// go/keep-sorted start
 @use '../../badge/badge';
-@use '../../ripple/ripple-theme';
 @use '../../focus/focus-ring';
 @use '../../motion/animation';
+@use '../../ripple/ripple';
 @use '../../sass/theme';
 @use '../../tokens';
+// go/keep-sorted end
 
 $animation-duration: 100ms;
 $_custom-property-prefix: 'navigation-bar';
@@ -33,13 +36,18 @@ $_custom-property-prefix: 'navigation-bar';
   $tokens: tokens.md-comp-navigation-bar-values();
   $tokens: theme.create-theme-vars($tokens, $_custom-property-prefix);
 
-  * {
+  :host {
     @each $token, $value in $tokens {
       --_#{$token}: #{$value};
     }
-  }
 
-  :host {
+    @include focus-ring.theme(
+      (
+        offset: -2px,
+        shape: map.get(tokens.md-sys-shape-values(), corner-small),
+      )
+    );
+
     display: flex;
     flex-grow: 1;
   }
@@ -62,30 +70,7 @@ $_custom-property-prefix: 'navigation-bar';
     position: relative;
     text-align: center;
     width: 100%;
-    font-family: var(--_label-text-font);
-    font-size: var(--_label-text-size);
-    letter-spacing: var(--_label-text-tracking);
-    font-weight: var(--_label-text-weight);
-    line-height: var(--_label-text-line-height);
-
-    @include focus-ring.theme(
-      (
-        offset-vertical: -2px,
-        offset-horizontal: -2px,
-        shape: map.get(tokens.md-sys-shape-values(), corner-small),
-      )
-    );
-
-    @include badge.theme(
-      (
-        color: var(--_badge-color),
-        size: var(--_badge-size),
-        shape: var(--_badge-shape),
-        large-color: var(--_large-badge-color),
-        large-size: var(--_large-badge-size),
-        large-shape: var(--_large-badge-shape),
-      )
-    );
+    font: var(--_label-text-type);
 
     // Firefox draws a dotted border around focused buttons unless specifically overridden.
     &::-moz-focus-inner {
@@ -211,14 +196,14 @@ $_custom-property-prefix: 'navigation-bar';
       }
     }
 
-    @include ripple-theme.theme(
+    @include ripple.theme(
       (
-        hover-state-layer-color: var(--_active-hover-state-layer-color),
-        focus-state-layer-color: var(--_active-focus-state-layer-color),
-        pressed-state-layer-color: var(--_active-pressed-state-layer-color),
-        hover-state-layer-opacity: var(--_hover-state-layer-opacity),
-        focus-state-layer-opacity: var(--_focus-state-layer-opacity),
-        pressed-state-layer-opacity: var(--_pressed-state-layer-opacity),
+        hover-color: var(--_active-hover-state-layer-color),
+        focus-color: var(--_active-focus-state-layer-color),
+        pressed-color: var(--_active-pressed-state-layer-color),
+        hover-opacity: var(--_hover-state-layer-opacity),
+        focus-opacity: var(--_focus-state-layer-opacity),
+        pressed-opacity: var(--_pressed-state-layer-opacity),
       )
     );
   }
@@ -262,14 +247,14 @@ $_custom-property-prefix: 'navigation-bar';
       }
     }
 
-    @include ripple-theme.theme(
+    @include ripple.theme(
       (
-        hover-state-layer-color: var(--_inactive-hover-state-layer-color),
-        focus-state-layer-color: var(--_inactive-focus-state-layer-color),
-        pressed-state-layer-color: var(--_inactive-pressed-state-layer-color),
-        hover-state-layer-opacity: var(--_hover-state-layer-opacity),
-        focus-state-layer-opacity: var(--_focus-state-layer-opacity),
-        pressed-state-layer-opacity: var(--_pressed-state-layer-opacity),
+        hover-color: var(--_inactive-hover-state-layer-color),
+        focus-color: var(--_inactive-focus-state-layer-color),
+        pressed-color: var(--_inactive-pressed-state-layer-color),
+        hover-opacity: var(--_hover-state-layer-opacity),
+        focus-opacity: var(--_focus-state-layer-opacity),
+        pressed-opacity: var(--_pressed-state-layer-opacity),
       )
     );
   }

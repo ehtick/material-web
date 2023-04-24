@@ -6,11 +6,9 @@
 // stylelint-disable selector-class-pattern --
 // Selector '.md3-*' should only be used in this project.
 
+// go/keep-sorted start
 @use 'sass:map';
-
-@use '../../elevation/lib/elevation-theme';
-@use '../../sass/resolvers';
-@use '../../sass/shape';
+// go/keep-sorted end
 
 @mixin styles() {
   .md3-navigation-drawer-modal {
@@ -30,20 +28,4 @@
       max-inline-size: var(--_container-width);
     }
   }
-}
-
-@function resolve-tokens($tokens) {
-  $tokens: elevation-theme.resolve-theme(
-    $tokens,
-    map.get(resolvers.$material, elevation),
-    $shadow-color-token: divider-color,
-    $elevation-tokens: (modal-container-elevation)
-  );
-  $tokens: shape.resolve-theme(
-    $tokens,
-    map.get(resolvers.$material, shape),
-    container-shape
-  );
-
-  @return $tokens;
 }

@@ -3,13 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-@use '../../sass/typography';
-
-// stylelint-disable selector-class-pattern --
-// Selector '.md3-*' should only be used in this project.
-
 @mixin styles() {
-  .md3-field__label {
+  .label {
     color: var(--_label-text-color);
     overflow: hidden;
     max-width: 100%;
@@ -26,87 +21,54 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     z-index: 1;
-
-    @include typography.theme-styles(
-      (
-        font: var(--_label-text-font),
-        tracking: var(--_label-text-tracking),
-        weight: var(--_label-text-weight),
-      )
-    );
+    font: var(--_label-text-type);
   }
 
-  .md3-field__label--resting {
+  .label.resting {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    /*rtl:ignore*/
+  }
+
+  .label.floating {
+    font-size: var(--_label-text-populated-size);
+    line-height: var(--_label-text-populated-line-height);
     transform-origin: top left;
-
-    @include typography.theme-styles(
-      (
-        size: var(--_label-text-size),
-        line-height: var(--_label-text-line-height),
-      )
-    );
   }
 
-  .md3-field__label--floating {
-    @include typography.theme-styles(
-      (
-        size: var(--_label-text-populated-size),
-        line-height: var(--_label-text-populated-line-height),
-      )
-    );
-  }
-
-  .md3-field__label--hidden {
+  .label.hidden {
     opacity: 0;
   }
 
-  .md3-field--no-label {
-    .md3-field__label {
-      display: none;
-    }
+  .no-label .label {
+    display: none;
   }
 
-  :hover {
-    .md3-field__label {
-      color: var(--_hover-label-text-color);
-    }
+  :hover .label {
+    color: var(--_hover-label-text-color);
   }
 
-  .md3-field--focused {
-    .md3-field__label {
-      color: var(--_focus-label-text-color);
-    }
+  .focused .label {
+    color: var(--_focus-label-text-color);
   }
 
-  .md3-field--disabled {
-    .md3-field__label {
-      color: var(--_disabled-label-text-color);
-
-      &:not(.md3-field__label--hidden) {
-        opacity: var(--_disabled-label-text-opacity);
-      }
-    }
+  .disabled .label {
+    color: var(--_disabled-label-text-color);
   }
 
-  .md3-field--error:not(.md3-field--disabled) {
-    .md3-field__label {
-      color: var(--_error-label-text-color);
-    }
+  .disabled .label:not(.hidden) {
+    opacity: var(--_disabled-label-text-opacity);
+  }
 
-    &:hover {
-      .md3-field__label {
-        color: var(--_error-hover-label-text-color);
-      }
-    }
+  .error .label {
+    color: var(--_error-label-text-color);
+  }
 
-    &.md3-field--focused {
-      .md3-field__label {
-        color: var(--_error-focus-label-text-color);
-      }
-    }
+  .error:hover .label {
+    color: var(--_error-hover-label-text-color);
+  }
+
+  .error.focused .label {
+    color: var(--_error-focus-label-text-color);
   }
 }

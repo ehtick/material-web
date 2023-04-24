@@ -4,14 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import '../../elevation/elevation.js';
+
 import {html, TemplateResult} from 'lit';
 import {ClassInfo} from 'lit/directives/class-map.js';
 
 import {Button} from './button.js';
 
-/** @soyCompatible */
+/**
+ * An elevated button component.
+ */
 export class ElevatedButton extends Button {
-  /** @soyTemplate */
   protected override getRenderClasses(): ClassInfo {
     return {
       ...super.getRenderClasses(),
@@ -19,8 +22,7 @@ export class ElevatedButton extends Button {
     };
   }
 
-  /** @soyTemplate */
-  protected override renderOverlay(): TemplateResult {
-    return html`<div class="md3-elevation-overlay"></div>`;
+  protected override renderElevation(): TemplateResult {
+    return html`<md-elevation></md-elevation>`;
   }
 }

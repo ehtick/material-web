@@ -3,12 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// go/keep-sorted start
 @use './radio';
-@use './radio-theme';
+// go/keep-sorted end
 
-:host {
-  @include radio-theme.theme-styles(radio-theme.$light-theme);
-  @include radio.static-styles();
-
-  display: inline-flex;
-}
+@include radio.styles;

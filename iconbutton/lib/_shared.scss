@@ -9,15 +9,32 @@
 // stylelint-disable selector-class-pattern --
 // Selector '.md3-*' should only be used in this project.
 
+// go/keep-sorted start
 @use 'sass:map';
+// go/keep-sorted end
+// go/keep-sorted start
+@use '../../focus/focus-ring';
+@use '../../icon/icon';
 @use '../../sass/color';
+@use '../../sass/shape';
 @use '../../sass/touch-target';
 @use '../../tokens';
+// go/keep-sorted end
 
 @mixin styles() {
   :host {
     display: inline-flex;
     outline: none;
+    -webkit-tap-highlight-color: transparent;
+    height: var(--_container-size);
+    width: var(--_container-size);
+    justify-content: center;
+
+    @include focus-ring.theme(
+      (
+        shape: shape.corners-to-shape-token('--_container-shape'),
+      )
+    );
   }
 
   :host([disabled]) {
@@ -25,42 +42,40 @@
   }
 
   .md3-icon-button {
-    $touch-target-height: 48px;
-
     align-items: center;
     border: none;
     box-sizing: border-box;
     cursor: pointer;
     display: flex;
-    fill: currentColor;
     justify-content: center;
     outline: none;
     position: relative;
     text-decoration: none;
     user-select: none;
     z-index: 0;
-    height: var(--_container-size);
-    width: var(--_container-size);
-    font-size: var(--_icon-size);
-    margin: max(
-      0px,
-      calc((#{$touch-target-height} - var(--_container-size)) / 2)
+    flex: 1;
+    border-start-start-radius: var(--_container-shape-start-start);
+    border-start-end-radius: var(--_container-shape-start-end);
+    border-end-start-radius: var(--_container-shape-end-start);
+    border-end-end-radius: var(--_container-shape-end-end);
+  }
+
+  .md3-icon-button__icon {
+    @include icon.theme(
+      (
+        size: var(--_icon-size),
+        weight: inherit,
+      )
     );
-    border-radius: var(--_container-shape);
+  }
 
-    i,
-    svg,
-    img {
-      height: var(--_icon-size);
-      width: var(--_icon-size);
-    }
-
-    i,
-    svg,
-    img,
-    ::slotted(*) {
-      display: block;
-    }
+  md-ripple {
+    z-index: -1; // Place behind content
+    // TODO(b/263517885): replace with ripple.theme(container-shape)
+    border-start-start-radius: var(--_container-shape-start-start);
+    border-start-end-radius: var(--_container-shape-start-end);
+    border-end-start-radius: var(--_container-shape-end-start);
+    border-end-end-radius: var(--_container-shape-end-end);
   }
 
   .md3-icon-button--flip-icon .md3-icon-button__icon {
@@ -69,20 +84,6 @@
 
   .md3-icon-button__icon {
     display: inline-flex;
-
-    &.md3-icon-button__icon--on {
-      display: none;
-    }
-  }
-
-  .md3-icon-button--on {
-    .md3-icon-button__icon {
-      display: none;
-
-      &.md3-icon-button__icon--on {
-        display: inline-flex;
-      }
-    }
   }
 
   .md3-icon-button__link {
@@ -108,7 +109,7 @@
   // Otherwise, the color is not flattened, meaning that the color would
   // be applied without any opacity, which is incorrect.
   $opacity-keys: [ 'disabled-container-opacity', 'disabled-icon-opacity',
-    'disabled-outline-opacity', 'disabled-selected-container-opacity' ];
+    'disabled-selected-container-opacity' ];
 
   @each $opacity-key in $opacity-keys {
     // If opacity value is null, use the opacity value from the default tokens.
@@ -152,13 +153,13 @@
       ),
       (color-key: 'disabled-icon-color', opacity-key: 'disabled-icon-opacity'),
       (
-        color-key: 'disabled-outline-color',
-        opacity-key: 'disabled-outline-opacity'
-      ),
-      (
         color-key: 'disabled-selected-container-color',
         opacity-key: 'disabled-selected-container-opacity'
       )
     )
   );
+}
+
+@function resolve-shape-tokens($tokens, $property: 'container-shape') {
+  @return shape.resolve-tokens($tokens, $property);
 }

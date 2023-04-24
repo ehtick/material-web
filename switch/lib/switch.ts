@@ -4,53 +4,96 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// tslint:disable:no-new-decorators
+
 import '../../focus/focus-ring.js';
 import '../../ripple/ripple.js';
 
-import {html, TemplateResult} from 'lit';
-import {eventOptions, property, query, state} from 'lit/decorators.js';
+import {html, isServer, LitElement, TemplateResult} from 'lit';
+import {eventOptions, property, query, queryAsync, state} from 'lit/decorators.js';
 import {ClassInfo, classMap} from 'lit/directives/class-map.js';
 import {ifDefined} from 'lit/directives/if-defined.js';
+import {when} from 'lit/directives/when.js';
 
-import {ActionElement, BeginPressConfig, EndPressConfig} from '../../actionelement/action-element.js';
+import {dispatchActivationClick, isActivationClick} from '../../controller/events.js';
 import {FormController, getFormValue} from '../../controller/form-controller.js';
 import {ariaProperty} from '../../decorators/aria-property.js';
 import {pointerPress as focusRingPointerPress, shouldShowStrongFocus} from '../../focus/strong-focus.js';
+import {ripple} from '../../ripple/directive.js';
 import {MdRipple} from '../../ripple/ripple.js';
 
-/** @soyCompatible */
-export class Switch extends ActionElement {
+/**
+ * @fires input {InputEvent} Fired whenever `selected` changes due to user
+ * interaction (bubbles and composed).
+ * @fires change {Event} Fired whenever `selected` changes due to user
+ * interaction (bubbles).
+ */
+export class Switch extends LitElement {
   static override shadowRootOptions:
       ShadowRootInit = {mode: 'open', delegatesFocus: true};
 
+  /**
+   * @nocollapse
+   */
+  static formAssociated = true;
+
+  /**
+   * Disables the switch and makes it non-interactive.
+   */
   @property({type: Boolean, reflect: true}) disabled = false;
-  @property({type: Boolean}) processing = false;
+
+  /**
+   * Puts the switch in the selected state and sets the form submission value to
+   * the `value` property.
+   */
   @property({type: Boolean}) selected = false;
+
+  /**
+   * Shows both the selected and deselected icons.
+   */
   @property({type: Boolean}) icons = false;
+
+  /**
+   * Shows only the selected icon, and not the deselected icon. If `true`,
+   * overrides the behavior of the `icons` property.
+   */
   @property({type: Boolean}) showOnlySelectedIcon = false;
 
-  // Aria
-  @ariaProperty  // tslint:disable-line:no-new-decorators
-  // TODO(b/210730484): replace with @soyParam annotation
-  @property({type: String, attribute: 'data-aria-label', noAccessor: true})
+  @ariaProperty
+  @property({attribute: 'data-aria-label', noAccessor: true})
   override ariaLabel!: string;
 
-  // TODO: Add support in @ariaProperty for idref aria attributes
-  @ariaProperty  // tslint:disable-line:no-new-decorators
-  @property({type: String, attribute: 'data-aria-labelledby', noAccessor: true})
+  @ariaProperty
+  @property({attribute: 'data-aria-labelledby', noAccessor: true})
   ariaLabelledBy = '';
 
-  @state() protected showFocusRing = false;
+  @state() private showFocusRing = false;
+  @state() private showRipple = false;
 
   // Ripple
-  @query('md-ripple') readonly ripple!: MdRipple;
+  @queryAsync('md-ripple') private readonly ripple!: Promise<MdRipple|null>;
 
-  // FormController
+  // Button
+  @query('button') private readonly button!: HTMLButtonElement|null;
+
+  /**
+   * The associated form element with which this element's value will submit.
+   */
   get form() {
     return this.closest('form');
   }
-  @property({type: String, reflect: true}) name = '';
-  @property({type: String}) value = 'on';
+
+  /**
+   * The HTML name to use in form submission.
+   */
+  @property({reflect: true}) name = '';
+
+  /**
+   * The value associated with this switch on form submission. `null` is
+   * submitted when `selected` is `false`.
+   */
+  @property() value = 'on';
+
   [getFormValue]() {
     return this.selected ? this.value : null;
   }
@@ -58,19 +101,27 @@ export class Switch extends ActionElement {
   constructor() {
     super();
     this.addController(new FormController(this));
+    if (!isServer) {
+      this.addEventListener('click', (event: MouseEvent) => {
+        if (!isActivationClick(event)) {
+          return;
+        }
+        this.button?.focus();
+        if (this.button != null) {
+          // this triggers the click behavior, and the ripple
+          dispatchActivationClick(this.button);
+        }
+      });
+    }
   }
 
-  override click() {
-    this.endPress({cancelled: false});
-    super.click();
-  }
-
-  /** @soyTemplate */
   protected override render(): TemplateResult {
     const ariaLabelValue = this.ariaLabel ? this.ariaLabel : undefined;
     const ariaLabelledByValue =
         this.ariaLabelledBy ? this.ariaLabelledBy : undefined;
-    // TODO(b/230763631): update this template to include spans instead of divs
+    // NOTE: buttons must use only [phrasing
+    // content](https://html.spec.whatwg.org/multipage/dom.html#phrasing-content)
+    // children, which includes custom elements, but not `div`s
     return html`
       <button
         type="button"
@@ -84,74 +135,59 @@ export class Switch extends ActionElement {
         @focus="${this.handleFocus}"
         @blur="${this.handleBlur}"
         @pointerdown=${this.handlePointerDown}
-        @pointerenter=${this.handlePointerEnter}
-        @pointerup=${this.handlePointerUp}
-        @pointercancel=${this.handlePointerCancel}
-        @pointerleave=${this.handlePointerLeave}
-        @contextmenu=${this.handleContextMenu}
+        ${ripple(this.getRipple)}
       >
-        ${this.renderFocusRing()}
-        <div class="md3-switch__track">
+        ${when(this.showFocusRing, this.renderFocusRing)}
+        <span class="md3-switch__track">
           ${this.renderHandle()}
-        </div>
+        </span>
       </button>
-
-      <input
-        class="md3-switch__input"
-        type="checkbox"
-        aria-hidden="true"
-        name="${this.name}"
-        ?checked=${this.selected}
-        .value=${this.value}
-      >
     `;
   }
 
-  /** @soyTemplate */
-  protected getRenderClasses(): ClassInfo {
+  private getRenderClasses(): ClassInfo {
     return {
-      'md3-switch--processing': this.processing,
       'md3-switch--selected': this.selected,
       'md3-switch--unselected': !this.selected,
     };
   }
 
-  /** @soyTemplate */
-  protected renderRipple(): TemplateResult {
+  private readonly renderRipple = () => {
     return html`
-      <div class="md3-switch__ripple">
+      <span class="md3-switch__ripple">
         <md-ripple
           ?disabled="${this.disabled}"
           unbounded>
         </md-ripple>
-      </div>
+      </span>
     `;
-  }
+  };
 
-  /** @soyTemplate */
-  protected renderFocusRing(): TemplateResult {
-    return html`<md-focus-ring .visible="${
-        this.showFocusRing}"></md-focus-ring>`;
-  }
+  private readonly getRipple = () => {
+    this.showRipple = true;
+    return this.ripple;
+  };
 
-  /** @soyTemplate */
-  protected renderHandle(): TemplateResult {
+  private readonly renderFocusRing = () => {
+    return html`<md-focus-ring visible></md-focus-ring>`;
+  };
+
+  private renderHandle(): TemplateResult {
     /** @classMap */
     const classes = {
       'md3-switch__handle--big': this.icons && !this.showOnlySelectedIcon,
     };
     return html`
-      <div class="md3-switch__handle-container">
-        ${this.renderRipple()}
-        <div class="md3-switch__handle ${classMap(classes)}">
+      <span class="md3-switch__handle-container">
+        ${when(this.showRipple, this.renderRipple)}
+        <span class="md3-switch__handle ${classMap(classes)}">
           ${this.shouldShowIcons() ? this.renderIcons() : html``}
-        </div>
+        </span>
         ${this.renderTouchTarget()}
-      </div>
+      </span>
     `;
   }
 
-  /** @soyTemplate */
   private renderIcons(): TemplateResult {
     return html`
       <div class="md3-switch__icons">
@@ -163,10 +199,8 @@ export class Switch extends ActionElement {
 
   /**
    * https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Acheck%3AFILL%400%3Bwght%40500%3BGRAD%400%3Bopsz%4024
-   *
-   * @soyTemplate
    */
-  protected renderOnIcon(): TemplateResult {
+  private renderOnIcon(): TemplateResult {
     return html`
       <svg class="md3-switch__icon md3-switch__icon--on" viewBox="0 0 24 24">
         <path d="M9.55 18.2 3.65 12.3 5.275 10.675 9.55 14.95 18.725 5.775 20.35 7.4Z"/>
@@ -176,10 +210,8 @@ export class Switch extends ActionElement {
 
   /**
    * https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aclose%3AFILL%400%3Bwght%40500%3BGRAD%400%3Bopsz%4024
-   *
-   * @soyTemplate
    */
-  protected renderOffIcon(): TemplateResult {
+  private renderOffIcon(): TemplateResult {
     return html`
       <svg class="md3-switch__icon md3-switch__icon--off" viewBox="0 0 24 24">
         <path d="M6.4 19.2 4.8 17.6 10.4 12 4.8 6.4 6.4 4.8 12 10.4 17.6 4.8 19.2 6.4 13.6 12 19.2 17.6 17.6 19.2 12 13.6Z"/>
@@ -187,51 +219,37 @@ export class Switch extends ActionElement {
     `;
   }
 
-  /** @soyTemplate */
   private renderTouchTarget(): TemplateResult {
     return html`<span class="md3-switch__touch"></span>`;
   }
 
-  /** @soyTemplate */
   private shouldShowIcons(): boolean {
     return this.icons || this.showOnlySelectedIcon;
   }
 
-  override beginPress({positionEvent}: BeginPressConfig) {
-    this.ripple.beginPress(positionEvent);
-  }
-
-  override endPress({cancelled}: EndPressConfig) {
-    this.ripple.endPress();
-
-    if (cancelled || this.disabled) {
+  private handleClick() {
+    if (this.disabled) {
       return;
     }
 
     this.selected = !this.selected;
-    super.endPress({cancelled, actionData: {selected: this.selected}});
+    this.dispatchEvent(
+        new InputEvent('input', {bubbles: true, composed: true}));
+    // Bubbles but does not compose to mimic native browser <input> & <select>
+    // Additionally, native change event is not an InputEvent.
+    this.dispatchEvent(new Event('change', {bubbles: true}));
   }
 
-  protected handleFocus() {
+  private handleFocus() {
     this.showFocusRing = shouldShowStrongFocus();
   }
 
-  protected handleBlur() {
+  private handleBlur() {
     this.showFocusRing = false;
   }
 
-  protected handlePointerEnter(e: PointerEvent) {
-    this.ripple.beginHover(e);
-  }
-
-  override handlePointerLeave(e: PointerEvent) {
-    super.handlePointerLeave(e);
-    this.ripple.endHover();
-  }
-
   @eventOptions({passive: true})
-  override handlePointerDown(event: PointerEvent) {
-    super.handlePointerDown(event);
+  private handlePointerDown() {
     focusRingPointerPress();
     this.showFocusRing = false;
   }

@@ -6,11 +6,6 @@
 
 import {defaultTransformPseudoClasses, getTransformedPseudoClass, transformPseudoClasses} from './transform-pseudo-classes.js';
 
-declare global {
-  interface DocumentOrShadowRoot {
-    adoptedStyleSheets?: CSSStyleSheet[];
-  }
-}
 
 /**
  * Retrieves the element type from a `Harness` type.
@@ -33,6 +28,11 @@ export type ElementWithHarness<E extends HTMLElement = HTMLElement,
    * The harness for this element.
    */
   harness: H;
+
+  /**
+   * Associated form element.
+   */
+  form?: HTMLFormElement|null;
 };
 
 /**
@@ -316,6 +316,30 @@ export class Harness<E extends HTMLElement = HTMLElement> {
   }
 
   /**
+   * Simulates submitting the element's associated form element.
+   *
+   * @param form (Optional) form to submit, defaults to the elemnt's form.
+   * @returns The submitted form data or null if the element has no associated
+   * form.
+   */
+  submitForm(form = this.element.form) {
+    if (!form) {
+      return new FormData();
+    }
+    return new Promise<FormData>(resolve => {
+      const submitListener = (event: SubmitEvent) => {
+        event.preventDefault();
+        const data = new FormData(form);
+        resolve(data);
+        return false;
+      };
+
+      form.addEventListener('submit', submitListener, {once: true});
+      form.requestSubmit();
+    });
+  }
+
+  /**
    * Returns the element that should be used for interaction simulation.
    * Defaults to the host element itself.
    *
@@ -462,17 +486,16 @@ export class Harness<E extends HTMLElement = HTMLElement> {
       screenY: rect.top,
     };
 
-
     const pointerInit = {
       ...mouseInit,
       isPrimary: true,
       pointerType: 'mouse',
-      ...init,
     };
 
     const pointerEnterInit: PointerEventInit = {
       ...pointerInit,
       ...mouseEnterInit,
+      ...init,
     };
 
     element.dispatchEvent(new PointerEvent('pointerover', pointerInit));
@@ -582,14 +605,17 @@ export class Harness<E extends HTMLElement = HTMLElement> {
       ...init,
     };
 
-    const touch = this.createTouch(element);
     element.dispatchEvent(new PointerEvent('pointerdown', pointerInit));
-    element.dispatchEvent(new TouchEvent('touchstart', {
-      touches: [touch],
-      targetTouches: [touch],
-      changedTouches: [touch],
-      ...touchInit,
-    }));
+    // Firefox does not support TouchEvent constructor
+    if (window.TouchEvent) {
+      const touch = this.createTouch(element);
+      element.dispatchEvent(new TouchEvent('touchstart', {
+        touches: [touch],
+        targetTouches: [touch],
+        changedTouches: [touch],
+        ...touchInit,
+      }));
+    }
     this.simulatePointerFocus(element);
   }
 
@@ -611,10 +637,13 @@ export class Harness<E extends HTMLElement = HTMLElement> {
       ...init,
     };
 
-    const touch = this.createTouch(element);
     element.dispatchEvent(new PointerEvent('pointerup', pointerInit));
-    element.dispatchEvent(
-        new TouchEvent('touchend', {changedTouches: [touch], ...touchInit}));
+    // Firefox does not support TouchEvent constructor
+    if (window.TouchEvent) {
+      const touch = this.createTouch(element);
+      element.dispatchEvent(
+          new TouchEvent('touchend', {changedTouches: [touch], ...touchInit}));
+    }
   }
 
   /**
@@ -635,10 +664,13 @@ export class Harness<E extends HTMLElement = HTMLElement> {
       ...init,
     };
 
-    const touch = this.createTouch(element);
     element.dispatchEvent(new PointerEvent('pointercancel', pointerInit));
-    element.dispatchEvent(
-        new TouchEvent('touchcancel', {changedTouches: [touch], ...touchInit}));
+    // Firefox does not support TouchEvent constructor
+    if (window.TouchEvent) {
+      const touch = this.createTouch(element);
+      element.dispatchEvent(new TouchEvent(
+          'touchcancel', {changedTouches: [touch], ...touchInit}));
+    }
   }
 
   /**

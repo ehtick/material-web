@@ -1,149 +1,43 @@
 /**
- * @requirecss {field.lib.shared_styles}
- *
  * @license
  * Copyright 2021 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {html, LitElement, PropertyValues, TemplateResult} from 'lit';
-import {property, queryAsync, state} from 'lit/decorators.js';
-import {ClassInfo, classMap} from 'lit/directives/class-map.js';
+import {html, LitElement, nothing, PropertyValues, TemplateResult} from 'lit';
+import {property, query, state} from 'lit/decorators.js';
+import {classMap} from 'lit/directives/class-map.js';
+import {SurfacePositionTarget} from '../../menu/lib/surfacePositionController.js';
 
-import {createAnimationSignal, Easing} from '../../motion/animation.js';
+import {EASING} from '../../motion/animation.js';
 
-/** @soyCompatible */
-export class Field extends LitElement {
+/**
+ * A field component.
+ */
+export class Field extends LitElement implements SurfacePositionTarget {
   @property({type: Boolean}) disabled = false;
   @property({type: Boolean}) error = false;
   @property({type: Boolean}) focused = false;
-  @property({type: String}) label?: string;
+  @property() label?: string;
   @property({type: Boolean}) populated = false;
+  @property({type: Boolean}) resizable = false;
   @property({type: Boolean}) required = false;
 
   /**
    * Whether or not the field has leading content.
    */
   @property({type: Boolean}) hasStart = false;
+
   /**
    * Whether or not the field has trailing content.
    */
   @property({type: Boolean}) hasEnd = false;
 
-  @state() protected isAnimating = false;
-
-  protected readonly labelAnimationSignal = createAnimationSignal();
-
-  @queryAsync('.md3-field__label--floating')
-  protected readonly floatingLabelEl!: Promise<HTMLElement>;
-  @queryAsync('.md3-field__label--resting')
-  protected readonly restingLabelEl!: Promise<HTMLElement>;
-
-  /** @soyTemplate */
-  override render(): TemplateResult {
-    return html`
-      <span class="md3-field ${classMap(this.getRenderClasses())}">
-        ${this.renderContainer()}
-        ${this.renderSupportingText()}
-      </span>
-    `;
-  }
-
-  /** @soyTemplate */
-  protected renderContainer(): TemplateResult {
-    return html`
-      <span class="md3-field__container">
-        ${this.renderContainerContents()}
-      </span>
-    `;
-  }
-
-  /** @soyTemplate */
-  protected getRenderClasses(): ClassInfo {
-    return {
-      'md3-field--disabled': this.disabled,
-      'md3-field--error': this.error,
-      'md3-field--focused': this.focused,
-      'md3-field--with-start': this.hasStart,
-      'md3-field--with-end': this.hasEnd,
-      'md3-field--populated': this.populated,
-      'md3-field--required': this.required,
-      'md3-field--no-label': !this.label,
-    };
-  }
-
-  /** @soyTemplate */
-  protected renderContainerContents(): TemplateResult {
-    return html`
-      <span class="md3-field__start">
-        <slot name="start"></slot>
-      </span>
-      <span class="md3-field__middle">${this.renderMiddleContents()}</span>
-      <span class="md3-field__end">
-        <slot name="end"></slot>
-      </span>
-    `;
-  }
-
-  /** @soyTemplate */
-  protected renderMiddleContents(): TemplateResult {
-    return html`
-      <span class="md3-field__content"><slot></slot></span>
-    `;
-  }
-
-  /** @soyTemplate */
-  protected renderFloatingLabel(): TemplateResult {
-    const visible = (this.focused || this.populated) && !this.isAnimating;
-    /** @classMap */
-    const classes = {'md3-field__label--hidden': !visible};
-    return html`
-      <span class="md3-field__label md3-field__label--floating ${
-        classMap(classes)}"
-        aria-hidden=${!visible}
-      >${this.renderLabelText()}</span>
-    `;
-
-    // TODO(b/217441842): Create shared function once argument bug is fixed
-    // return this.renderLabel(LabelType.FLOATING);
-  }
-
-  /** @soyTemplate */
-  protected renderRestingLabel(): TemplateResult {
-    const visible = !(this.focused || this.populated) || this.isAnimating;
-    /** @classMap */
-    const classes = {'md3-field__label--hidden': !visible};
-    return html`
-      <span class="md3-field__label md3-field__label--resting ${
-        classMap(classes)}"
-        aria-hidden=${!visible}
-      >${this.renderLabelText()}</span>
-    `;
-
-    // TODO(b/217441842): Create shared function once argument bug is fixed
-    // return this.renderLabel(LabelType.RESTING);
-  }
-
-  /** @soyTemplate */
-  protected renderLabelText(): string {
-    const labelText = this.label ?? '';
-    const optionalAsterisk = this.required && labelText ? '*' : '';
-    return labelText + optionalAsterisk;
-  }
-
-  /** @soyTemplate */
-  protected renderSupportingText(): TemplateResult {
-    return html`
-      <span class="md3-field__supporting-text">
-        <span class="md3-field__supporting-text-start">
-          <slot name="supporting-text"></slot>
-        </span>
-        <span class="md3-field__supporting-text-end">
-          <slot name="supporting-text-end"></slot>
-        </span>
-      </span>
-    `;
-  }
+  @state() private isAnimating = false;
+  private labelAnimation?: Animation;
+  @query('.label.floating') private readonly floatingLabelEl!: HTMLElement|null;
+  @query('.label.resting') private readonly restingLabelEl!: HTMLElement|null;
+  @query('.container') private readonly containerEl!: HTMLElement|null;
 
   protected override update(props: PropertyValues<Field>) {
     // Client-side property updates
@@ -163,7 +57,90 @@ export class Field extends LitElement {
     super.update(props);
   }
 
-  protected async animateLabelIfNeeded({wasFocused, wasPopulated}: {
+  protected override render() {
+    const floatingLabel = this.renderLabel(/*isFloating*/ true);
+    const restingLabel = this.renderLabel(/*isFloating*/ false);
+    const outline = this.renderOutline?.(floatingLabel);
+    const classes = {
+      'disabled': this.disabled,
+      'error': this.error && !this.disabled,
+      'focused': this.focused,
+      'with-start': this.hasStart,
+      'with-end': this.hasEnd,
+      'populated': this.populated,
+      'resizable': this.resizable,
+      'required': this.required,
+      'no-label': !this.label,
+    };
+
+    return html`
+      <div class="field ${classMap(classes)}">
+        <div class="container-overflow">
+          ${outline}
+          ${this.renderBackground?.()}
+          ${this.renderIndicator?.()}
+          <div class="container">
+            <div class="start">
+              <slot name="start"></slot>
+            </div>
+            <div class="middle">
+              ${restingLabel}
+              ${outline ? nothing : floatingLabel}
+              <div class="content">
+                <slot></slot>
+              </div>
+            </div>
+            <div class="end">
+              <slot name="end"></slot>
+            </div>
+          </div>
+        </div>
+
+        <div class="supporting-text">
+          <div class="supporting-text-start">
+            <slot name="supporting-text"></slot>
+          </div>
+          <div class="supporting-text-end">
+            <slot name="supporting-text-end"></slot>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  protected renderBackground?(): TemplateResult;
+  protected renderIndicator?(): TemplateResult;
+  protected renderOutline?(floatingLabel: TemplateResult): TemplateResult;
+
+  private renderLabel(isFloating: boolean) {
+    let visible: boolean;
+    if (isFloating) {
+      // Floating label is visible when focused/populated or when animating.
+      visible = this.focused || this.populated || this.isAnimating;
+    } else {
+      // Resting label is visible when unfocused. It is never visible while
+      // animating.
+      visible = !this.focused && !this.populated && !this.isAnimating;
+    }
+
+    const classes = {
+      'hidden': !visible,
+      'floating': isFloating,
+      'resting': !isFloating,
+    };
+
+    let labelText = this.label ?? '';
+    // Add '*' if a label is present and the field is required
+    labelText += this.required && labelText ? '*' : '';
+
+    return html`
+      <span class="label ${classMap(classes)}"
+        aria-hidden=${!visible}
+      >${labelText}</span>
+    `;
+  }
+
+  private animateLabelIfNeeded({wasFocused, wasPopulated}: {
     wasFocused?: boolean,
     wasPopulated?: boolean
   }) {
@@ -180,20 +157,13 @@ export class Field extends LitElement {
     }
 
     this.isAnimating = true;
-    const signal = this.labelAnimationSignal.start();
+    this.labelAnimation?.cancel();
 
     // Only one label is visible at a time for clearer text rendering.
-    // The resting label is visible and used during animation. At the end of the
-    // animation, it will either remain visible (if resting) or hide and the
-    // floating label will be shown.
-    const labelEl = await this.restingLabelEl;
-    const keyframes = await this.getLabelKeyframes();
-    if (signal.aborted) {
-      // Don't animate if this animation was requested to stop while getting
-      // the label element or calculating keyframes
-      return;
-    }
-
+    // The floating label is visible and used during animation. At the end of
+    // the animation, it will either remain visible (if floating) or hide and
+    // the resting label will be shown.
+    //
     // We don't use forward filling because if the dimensions of the text field
     // change (leading icon removed, density changes, etc), then the animation
     // will be inaccurate.
@@ -201,59 +171,65 @@ export class Field extends LitElement {
     // Re-calculating the animation each time will prevent any visual glitches
     // from appearing.
     // TODO(b/241113345): use animation tokens
-    const animation =
-        labelEl.animate(keyframes, {duration: 150, easing: Easing.STANDARD});
+    this.labelAnimation = this.floatingLabelEl?.animate(
+        this.getLabelKeyframes(), {duration: 150, easing: EASING.STANDARD});
 
-    signal.addEventListener('abort', () => {
-      // Cancel if requested (another animation starts playing).
-      animation.cancel();
-    });
-
-    animation.addEventListener('finish', () => {
+    this.labelAnimation?.addEventListener('finish', () => {
       // At the end of the animation, update the visible label.
       this.isAnimating = false;
-      this.labelAnimationSignal.finish();
     });
   }
 
-  protected async getLabelKeyframes() {
-    const floatingLabelEl = await this.floatingLabelEl;
-    const restingLabelEl = await this.restingLabelEl;
-    const {
-      x: floatingX,
-      y: floatingY,
-      width: floatingWidth,
-      height: floatingHeight
-    } = floatingLabelEl.getBoundingClientRect();
-    const {
-      x: restingX,
-      y: restingY,
-      width: restingWidth,
-      height: restingHeight
-    } = restingLabelEl.getBoundingClientRect();
-    // Scale by width ratio instead of font size since letter-spacing will scale
-    // incorrectly. Using the width we can better approximate the adjusted
-    // scale and compensate for tracking.
-    const scale = floatingWidth / restingWidth;
-    const xDelta = floatingX - restingX;
-    // The line-height of the resting and floating label are different. When
-    // we move the resting label up to the floating label's position, it won't
-    // exactly match because of this. We need to adjust by half of what the
-    // final scaled resting label's height will be.
-    const yDelta = floatingY - restingY +
-        Math.round((floatingHeight - restingHeight * scale) / 2);
-
-    // Create the two transforms: resting to floating (using the calculations
-    // above), and floating to resting (re-setting the transform to initial
-    // values).
-    const floatTransform = `translateX(${xDelta}px) translateY(calc(-50% + ${
-        yDelta}px)) scale(${scale})`;
-    const restTransform = `translateX(0) translateY(-50%) scale(1)`;
-
-    if (this.focused || this.populated) {
-      return [{transform: restTransform}, {transform: floatTransform}];
+  private getLabelKeyframes() {
+    const {floatingLabelEl, restingLabelEl} = this;
+    if (!floatingLabelEl || !restingLabelEl) {
+      return [];
     }
 
-    return [{transform: floatTransform}, {transform: restTransform}];
+    const {x: floatingX, y: floatingY, height: floatingHeight} =
+        floatingLabelEl.getBoundingClientRect();
+    const {x: restingX, y: restingY, height: restingHeight} =
+        restingLabelEl.getBoundingClientRect();
+    const floatingScrollWidth = floatingLabelEl.scrollWidth;
+    const restingScrollWidth = restingLabelEl.scrollWidth;
+    // Scale by width ratio instead of font size since letter-spacing will scale
+    // incorrectly. Using the width we can better approximate the adjusted
+    // scale and compensate for tracking and overflow.
+    // (use scrollWidth instead of width to account for clipped labels)
+    const scale = restingScrollWidth / floatingScrollWidth;
+    const xDelta = restingX - floatingX;
+    // The line-height of the resting and floating label are different. When
+    // we move the floating label down to the resting label's position, it won't
+    // exactly match because of this. We need to adjust by half of what the
+    // final scaled floating label's height will be.
+    const yDelta = restingY - floatingY +
+        Math.round((restingHeight - floatingHeight * scale) / 2);
+
+    // Create the two transforms: floating to resting (using the calculations
+    // above), and resting to floating (re-setting the transform to initial
+    // values).
+    const restTransform =
+        `translateX(${xDelta}px) translateY(${yDelta}px) scale(${scale})`;
+    const floatTransform = `translateX(0) translateY(0) scale(1)`;
+
+    // Constrain the floating labels width to a scaled percentage of the
+    // resting label's width. This will prevent long clipped labels from
+    // overflowing the container.
+    const restingClientWidth = restingLabelEl.clientWidth;
+    const isRestingClipped = restingScrollWidth > restingClientWidth;
+    const width = isRestingClipped ? `${restingClientWidth / scale}px` : '';
+    if (this.focused || this.populated) {
+      return [
+        {transform: restTransform, width}, {transform: floatTransform, width}
+      ];
+    }
+
+    return [
+      {transform: floatTransform, width}, {transform: restTransform, width}
+    ];
+  }
+
+  getSurfacePositionClientRect() {
+    return this.containerEl!.getBoundingClientRect();
   }
 }

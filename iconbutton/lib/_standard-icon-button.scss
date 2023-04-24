@@ -6,18 +6,26 @@
 // stylelint-disable selector-class-pattern --
 // Selector '.md3-*' should only be used in this project.
 
+// go/keep-sorted start
 @use 'sass:map';
-@use '../../ripple/ripple-theme';
+// go/keep-sorted end
+// go/keep-sorted start
+@use '../../focus/focus-ring';
+@use '../../ripple/ripple';
+@use '../../sass/shape';
 @use '../../sass/theme';
 @use '../../tokens';
 @use './shared';
+// go/keep-sorted end
 
 $_custom-property-prefix: 'icon-button';
+$_shape-property: 'state-layer-shape';
 
 @mixin theme($tokens) {
   $tokens: theme.validate-theme(tokens.md-comp-icon-button-values(), $tokens);
   $tokens: shared.flatten-disabled-colors($tokens);
   $tokens: theme.create-theme-vars($tokens, $_custom-property-prefix);
+  $tokens: shared.resolve-shape-tokens($tokens, $property: $_shape-property);
 
   @include theme.emit-theme-vars($tokens);
 }
@@ -26,33 +34,36 @@ $_custom-property-prefix: 'icon-button';
   $tokens: tokens.md-comp-icon-button-values();
   $tokens: shared.flatten-disabled-colors($tokens);
   $tokens: theme.create-theme-vars($tokens, $_custom-property-prefix);
+  $tokens: shared.resolve-shape-tokens($tokens, $property: $_shape-property);
 
-  * {
+  :host {
     @each $token, $value in $tokens {
       --_#{$token}: #{$value};
     }
+
+    height: var(--_state-layer-size);
+    width: var(--_state-layer-size);
+
+    @include focus-ring.theme(
+      (
+        shape: shape.corners-to-shape-token('--_state-layer-shape'),
+      )
+    );
   }
 
   .md3-icon-button--standard {
-    $touch-target-height: 48px;
     background-color: transparent;
     color: var(--_unselected-icon-color);
-    height: var(--_state-layer-size);
-    width: var(--_state-layer-size);
-    margin: max(
-      0px,
-      calc((#{$touch-target-height} - #{var(--_state-layer-size)}) / 2)
-    );
 
-    @include ripple-theme.theme(
+    @include ripple.theme(
       (
-        focus-state-layer-color: var(--_unselected-focus-state-layer-color),
-        focus-state-layer-opacity: var(--_unselected-focus-state-layer-opacity),
-        hover-state-layer-color: var(--_unselected-hover-state-layer-color),
-        hover-state-layer-opacity: var(--_unselected-hover-state-layer-opacity),
-        pressed-state-layer-color: var(--_unselected-pressed-state-layer-color),
-        pressed-state-layer-opacity:
-          var(--_unselected-pressed-state-layer-opacity),
+        focus-color: var(--_unselected-focus-state-layer-color),
+        focus-opacity: var(--_unselected-focus-state-layer-opacity),
+        hover-color: var(--_unselected-hover-state-layer-color),
+        hover-opacity: var(--_unselected-hover-state-layer-opacity),
+        pressed-color: var(--_unselected-pressed-state-layer-color),
+        pressed-opacity: var(--_unselected-pressed-state-layer-opacity),
+        shape: shape.corners-to-shape-token('--_state-layer-shape'),
       )
     );
 
@@ -73,7 +84,7 @@ $_custom-property-prefix: 'icon-button';
     }
   }
 
-  .md3-icon-button--on {
+  .md3-icon-button--selected {
     &:not(:disabled) {
       color: var(--_selected-icon-color);
 
@@ -90,15 +101,14 @@ $_custom-property-prefix: 'icon-button';
       }
     }
 
-    @include ripple-theme.theme(
+    @include ripple.theme(
       (
-        focus-state-layer-color: var(--_selected-focus-state-layer-color),
-        focus-state-layer-opacity: var(--_selected-focus-state-layer-opacity),
-        hover-state-layer-color: var(--_selected-hover-state-layer-color),
-        hover-state-layer-opacity: var(--_selected-hover-state-layer-opacity),
-        pressed-state-layer-color: var(--_selected-pressed-state-layer-color),
-        pressed-state-layer-opacity:
-          var(--_selected-pressed-state-layer-opacity),
+        focus-color: var(--_selected-focus-state-layer-color),
+        focus-opacity: var(--_selected-focus-state-layer-opacity),
+        hover-color: var(--_selected-hover-state-layer-color),
+        hover-opacity: var(--_selected-hover-state-layer-opacity),
+        pressed-color: var(--_selected-pressed-state-layer-color),
+        pressed-opacity: var(--_selected-pressed-state-layer-opacity),
       )
     );
   }

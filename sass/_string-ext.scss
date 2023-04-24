@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// go/keep-sorted start
+@use 'sass:list';
 @use 'sass:string';
+// go/keep-sorted end
 
 /// Checks if a string starts with a given prefix.
 ///
@@ -125,4 +128,68 @@
 /// @return {String} The string with the prefix and suffix trimmed.
 @function trim($string, $prefix, $suffix: $prefix) {
   @return trim-prefix(trim-suffix($string, $suffix), $prefix);
+}
+
+/// Returns a new string with the first match of a pattern replaced by a
+/// replacement.
+///
+/// @example - scss
+///   @debug trim('foo bar baz', 'bar', 'quux'); // "foo quux baz"
+///
+/// @param {String} $string - The string to be searched.
+/// @param {String} $pattern - The pattern to search for.
+/// @param {String} $replacement - The value to replace the pattern.
+/// @return {String} The string with the first match of pattern replaced by the
+///     replacement or the initial string itself.
+@function replace($string, $pattern, $replacement) {
+  $pattern-index: string.index($string, $pattern);
+  @if not $pattern-index {
+    @return $string;
+  }
+
+  $before: string.slice($string, 1, $pattern-index - 1);
+  $after: string.slice($string, string.length($pattern) + $pattern-index);
+
+  @return $before + $replacement + $after;
+}
+
+/// Divides a string into an ordered list of substrings.
+///
+/// @example - scss
+///   @debug split("1px 2px 3px 4px"); // (1px 2px 3px 4px)
+///   @debug split("1px, 2px, 3px, 4px"); // (1px 2px 3px 4px)
+///   @debug split("1px/2px/3px/4px"); // (1px 2px 3px 4px)
+///
+/// @param {String} $str - The string to split
+/// @return {List} The list of substrings
+@function split($str) {
+  $list: ();
+  $item: '';
+  // list separator precedence is comma, slash, space
+  $separator: ' ';
+  @if string.index($str, ',') {
+    $separator: ',';
+  } @else if string.index($str, '/') {
+    $separator: '/';
+  }
+  @for $i from 1 through string.length($str) {
+    $chr: string.slice($str, $i, $i);
+    @if $chr == $separator {
+      @if $item != '' {
+        // remove surrounding whitespace
+        $item: string.unquote(trim($item, ' '));
+        $list: list.append($list, $item);
+      }
+      $item: '';
+    } @else {
+      $item: $item + $chr;
+    }
+  }
+  // append final item
+  @if $item != '' {
+    // remove surrounding whitespace
+    $item: string.unquote(trim($item, ' '));
+    $list: list.append($list, $item);
+  }
+  @return $list;
 }

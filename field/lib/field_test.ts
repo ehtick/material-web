@@ -6,7 +6,7 @@
 
 // import 'jasmine'; (google3-only)
 
-import {html} from 'lit';
+import {html, TemplateResult} from 'lit';
 import {customElement} from 'lit/decorators.js';
 
 import {Environment} from '../../testing/environment.js';
@@ -22,33 +22,13 @@ declare global {
 
 @customElement('md-test-field')
 class TestField extends Field {
-  get floatingLabelElement() {
-    return this.floatingLabelEl;
+  get labelText() {
+    return this.renderRoot.querySelector('.label')?.textContent ?? '';
   }
 
-  get restingLabelElement() {
-    return this.restingLabelEl;
-  }
-
-  labelText?: string;
-
-  // Ensure floating/resting labels are rendered
-  protected override renderMiddleContents() {
-    return html`
-      ${this.renderFloatingLabel()}
-      ${this.renderRestingLabel()}
-      ${super.renderMiddleContents()}
-    `;
-  }
-
-  override renderLabelText(): string {
-    this.labelText = super.renderLabelText();
-    return this.labelText;
-  }
-
-  override animateLabelIfNeeded(...args:
-                                    Parameters<Field['animateLabelIfNeeded']>) {
-    return super.animateLabelIfNeeded(...args);
+  // Ensure floating/resting labels are both rendered
+  protected override renderOutline(floatingLabel: TemplateResult) {
+    return floatingLabel;
   }
 }
 
@@ -121,7 +101,7 @@ describe('Field', () => {
            // Assertion.
            expect(floatingLabel.classList)
                .withContext('should display resting label for animation')
-               .not.toContain('md3-field__label--hidden');
+               .not.toContain('label--hidden');
          });
 
       it('should update visible label type to resting immediately when resting',
@@ -135,7 +115,7 @@ describe('Field', () => {
            // Assertion.
            expect(restingLabel.classList)
                .withContext('should display resting label for animation')
-               .not.toContain('md3-field__label--hidden');
+               .not.toContain('label--hidden');
          });
 
       it('should update visible label type after floating animation ends',
@@ -154,7 +134,7 @@ describe('Field', () => {
            // Assertion.
            expect(floatingLabel.classList)
                .withContext('visible label should be floating after focusing')
-               .not.toContain('md3-field__label--hidden');
+               .not.toContain('label--hidden');
          });
 
       it('should update visible label type after resting animation ends',
@@ -173,7 +153,7 @@ describe('Field', () => {
            // Assertion.
            expect(restingLabel.classList)
                .withContext('visible label should be resting after unfocusing')
-               .not.toContain('md3-field__label--hidden');
+               .not.toContain('label--hidden');
          });
 
       it('should animate label when focused changes', async () => {
@@ -226,7 +206,7 @@ describe('Field', () => {
            expect(floatingLabel.classList)
                .withContext(
                    'focusing should still set visible label type to floating')
-               .toContain('md3-field__label--hidden');
+               .toContain('label--hidden');
 
            // Test case.
            await harness.blur();
@@ -235,7 +215,7 @@ describe('Field', () => {
            expect(floatingLabel.classList)
                .withContext(
                    'unfocusing should still set visible label type to resting')
-               .not.toContain('md3-field__label--hidden');
+               .not.toContain('label--hidden');
          });
 
       it('should not animate if focusing a populated field', async () => {
@@ -311,7 +291,7 @@ describe('Field', () => {
       const labelValue = 'Label';
       const {instance} = await setupTest({label: labelValue});
       // Assertion.
-      expect(instance.renderLabelText())
+      expect(instance.labelText)
           .withContext('label text should equal label when not required')
           .toBe(labelValue);
     });
@@ -322,7 +302,7 @@ describe('Field', () => {
       const labelValue = 'Label';
       const {instance} = await setupTest({required: true, label: labelValue});
       // Assertion.
-      expect(instance.renderLabelText())
+      expect(instance.labelText)
           .withContext(
               'label text should equal label with asterisk when required')
           .toBe(`${labelValue}*`);

@@ -3,13 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// stylelint-disable selector-class-pattern --
-// Selector '.md3-*' should only be used in this project.
-
+// go/keep-sorted start
 @use 'sass:map';
+// go/keep-sorted end
+// go/keep-sorted start
 @use '../../sass/theme';
 @use '../../tokens';
 @use './md-comp-ripple';
+// go/keep-sorted end
 
 @mixin theme($tokens) {
   $tokens: theme.validate-theme(md-comp-ripple.values(), $tokens);
@@ -22,7 +23,7 @@
   $tokens: md-comp-ripple.values();
   $tokens: theme.create-theme-vars($tokens, ripple);
 
-  * {
+  :host {
     @each $token, $value in $tokens {
       --_#{$token}: #{$value};
     }
@@ -37,15 +38,19 @@
   }
 
   :host,
-  .md3-ripple-surface {
+  .surface {
     position: absolute;
     inset: 0;
     pointer-events: none;
     overflow: hidden;
   }
 
-  .md3-ripple-surface {
-    border-radius: var(--_state-layer-shape);
+  .surface {
+    // TODO(https://bugs.webkit.org/show_bug.cgi?id=247546)
+    // Remove Safari workaround for incorrect ripple overflow when addressed.
+    // This addresses `hover` and `pressed` state oveflow.
+    will-change: transform;
+    border-radius: var(--_shape);
     outline: none;
     -webkit-tap-highlight-color: transparent;
 
@@ -54,12 +59,11 @@
       position: absolute;
       opacity: 0;
       pointer-events: none;
-      z-index: -1;
       content: '';
     }
 
     &::before {
-      background-color: var(--_hover-state-layer-color);
+      background-color: var(--_hover-color);
       transition: opacity 15ms linear, background-color 15ms linear;
       inset: 0;
     }
@@ -68,7 +72,7 @@
       // press ripple fade-out
       background: radial-gradient(
         closest-side,
-        var(--_pressed-state-layer-color) max(calc(100% - 70px), 65%),
+        var(--_pressed-color) max(calc(100% - 70px), 65%),
         transparent 100%
       );
       transition: opacity 375ms linear;
@@ -76,33 +80,32 @@
     }
   }
 
-  .md3-ripple--hovered::before {
-    background-color: var(--_hover-state-layer-color);
-    opacity: var(--_hover-state-layer-opacity);
+  .hovered::before {
+    background-color: var(--_hover-color);
+    opacity: var(--_hover-opacity);
   }
 
-  .md3-ripple--focused::before {
-    background-color: var(--_focus-state-layer-color);
-    opacity: var(--_focus-state-layer-opacity);
+  .focused::before {
+    background-color: var(--_focus-color);
+    opacity: var(--_focus-opacity);
     transition-duration: 75ms;
   }
 
-  .md3-ripple--pressed::after {
+  .pressed::after {
     // press ripple fade-in
-    opacity: var(--_pressed-state-layer-opacity);
+    opacity: var(--_pressed-opacity);
     transition-duration: 105ms;
   }
 
-  .md3-ripple--unbounded {
+  .unbounded {
     $unbounded: (
-      state-layer-shape: map.get(tokens.md-sys-shape-values(), 'corner-full'),
+      shape: map.get(tokens.md-sys-shape-values(), 'corner-full'),
     );
     $unbounded: theme.create-theme-vars($unbounded, ripple);
 
-    --_state-layer-shape: #{map.get($unbounded, 'state-layer-shape')};
+    --_shape: #{map.get($unbounded, 'shape')};
   }
 
-  // TODO(b/230630968): create a forced-colors-mode mixin
   @media screen and (forced-colors: active) {
     :host {
       display: none;

@@ -9,11 +9,12 @@ import '../field/outlined-field.js';
 import {customElement} from 'lit/decorators.js';
 import {literal} from 'lit/static-html.js';
 
-// TODO(b/236285090): update with HCM best practices
 import {styles as outlinedForcedColorsStyles} from './lib/outlined-forced-colors-styles.css.js';
 import {styles as outlinedStyles} from './lib/outlined-styles.css.js';
 import {OutlinedTextField} from './lib/outlined-text-field.js';
 import {styles as sharedStyles} from './lib/shared-styles.css.js';
+
+export {TextFieldType} from './lib/text-field.js';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -22,7 +23,7 @@ declare global {
 }
 
 /**
- * @soyCompatible
+ * TODO(b/228525797): Add docs
  * @final
  * @suppress {visibility}
  */

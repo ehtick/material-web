@@ -3,79 +3,63 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// stylelint-disable selector-class-pattern --
-// Selector '.md3-*' should only be used in this project.
-
+// go/keep-sorted start
 @use 'sass:map';
-@use '../../sass/resolvers';
-@use '../../sass/shape';
-@use '../../sass/typography';
+// go/keep-sorted end
+// go/keep-sorted start
 @use './content';
 @use './label';
 @use './supporting-text';
+// go/keep-sorted end
 
 @mixin styles() {
   :host {
     display: inline-flex;
   }
 
-  .md3-field {
-    display: inline-flex;
+  .field {
+    display: flex;
     flex: 1;
     flex-direction: column;
     // Allow the use of block/inline reflexive RTL properties without impacting
     // structure when languages change.
     writing-mode: horizontal-tb;
+    max-width: 100%; // Do not allow field to grow beyond explicitly set width
   }
 
-  .md3-field__container {
-    align-items: center;
-    box-sizing: border-box;
+  // A separate wrapper is needed around the container for the outline, whose
+  // floating label needs overflow: visible. The container itself needs
+  // overflow: hidden for resizability.
+  .container-overflow {
+    border-start-start-radius: var(--_container-shape-start-start);
+    border-start-end-radius: var(--_container-shape-start-end);
+    border-end-end-radius: var(--_container-shape-end-end);
+    border-end-start-radius: var(--_container-shape-end-start);
     display: flex;
-    flex: 1;
-    flex-basis: var(--_container-height);
     position: relative;
   }
 
-  .md3-field--disabled {
+  .container {
+    align-items: center;
+    border-radius: inherit;
+    display: flex;
+    flex: 1;
+    min-width: min-content;
+    overflow: hidden;
+    padding-top: var(--_container-padding-vertical);
+    padding-bottom: var(--_container-padding-vertical);
+    position: relative;
+  }
+
+  .resizable .container {
+    resize: both;
+  }
+
+  .disabled {
     pointer-events: none;
-  }
-
-  // TODO(b/239188049): remove when layout tokens are ready
-  .md3-field--with-start .md3-field__start,
-  .md3-field--with-end .md3-field__end {
-    min-width: 48px;
-  }
-
-  .md3-field--with-start {
-    .md3-field__start {
-      margin-inline-end: 4px;
-    }
-  }
-
-  .md3-field--with-end {
-    .md3-field__end {
-      margin-inline-start: 4px;
-    }
   }
 
   @include content.styles;
   @include label.styles;
   @include supporting-text.styles;
-}
-
-@function resolve-tokens($tokens) {
-  $tokens: typography.resolve-theme(
-    $tokens,
-    map.get(resolvers.$material, typography),
-    label-text,
-    label-text-populated,
-    supporting-text
-  );
-
-  @return shape.resolve-theme(
-    $tokens,
-    map.get(resolvers.$material, shape),
-    container-shape
-  );
 }

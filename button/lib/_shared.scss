@@ -6,28 +6,17 @@
 // stylelint-disable selector-class-pattern --
 // Selector '.md3-*' should only be used in this project.
 
+// go/keep-sorted start
 @use 'sass:map';
-@use '../../elevation/lib/surface' as elevation-surface;
-@use '../../ripple/ripple-theme';
-@use '../../sass/color';
+// go/keep-sorted end
+// go/keep-sorted start
+@use '../../focus/focus-ring';
+@use '../../ripple/ripple';
 @use '../../sass/dom';
-@use '../../sass/typography';
-@use '../../sass/resolvers';
+@use '../../sass/shape';
+// go/keep-sorted end
 
 @mixin styles() {
-  * {
-    @include ripple-theme.theme(
-      (
-        hover-state-layer-color: var(--_hover-state-layer-color),
-        focus-state-layer-color: var(--_focus-state-layer-color),
-        pressed-state-layer-color: var(--_pressed-state-layer-color),
-        hover-state-layer-opacity: var(--_hover-state-layer-opacity),
-        focus-state-layer-opacity: var(--_focus-state-layer-opacity),
-        pressed-state-layer-opacity: var(--_pressed-state-layer-opacity),
-      )
-    );
-  }
-
   :host {
     display: inline-flex;
     outline: none;
@@ -38,21 +27,31 @@
      * button has an icon and the other does not.
      */
     vertical-align: top;
+
+    @include ripple.theme(
+      (
+        hover-color: var(--_hover-state-layer-color),
+        focus-color: var(--_focus-state-layer-color),
+        pressed-color: var(--_pressed-state-layer-color),
+        hover-opacity: var(--_hover-state-layer-opacity),
+        focus-opacity: var(--_focus-state-layer-opacity),
+        pressed-opacity: var(--_pressed-state-layer-opacity),
+      )
+    );
+
+    @include focus-ring.theme(
+      (
+        shape: shape.corners-to-shape-token('--_container-shape'),
+      )
+    );
   }
 
   :host([disabled]) {
     cursor: default;
     pointer-events: none;
-
-    border-start-start-radius: var(
-      --md-comp-button-shape-start-start,
-      var(--md-comp-button-shape)
-    );
   }
 
   .md3-button {
-    @include elevation-surface.root-static-styles();
-
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -60,23 +59,30 @@
     min-inline-size: 64px;
     border: none;
     outline: none;
-    line-height: inherit;
     user-select: none;
     -webkit-appearance: none;
     vertical-align: middle;
     background: transparent;
     text-decoration: none;
     inline-size: 100%;
+    position: relative;
+    z-index: 0; // Place content on top of elevation and ripple
     block-size: var(--_container-height);
-    font-family: var(--_label-text-font);
-    font-size: var(--_label-text-size);
-    letter-spacing: var(--_label-text-tracking);
-    font-weight: var(--_label-text-weight);
-    background-color: var(--_container-color);
+    font: var(--_label-text-type);
     color: var(--_label-text-color);
     // TODO(b/181413732): Verify token below are named correctly
     padding-inline-start: var(--_spacing-leading);
     padding-inline-end: var(--_spacing-trailing);
+    gap: 8px;
+
+    &::before {
+      // Background color. Separate node for disabled opacity styles.
+      background-color: var(--_container-color);
+      border-radius: inherit;
+      content: '';
+      inset: 0;
+      position: absolute;
+    }
 
     &::-moz-focus-inner {
       padding: 0;
@@ -97,9 +103,14 @@
       outline: none;
     }
 
-    &:disabled {
-      background-color: var(--_disabled-container-color);
+    &:disabled .md3-button__label {
       color: var(--_disabled-label-text-color);
+      opacity: var(--_disabled-label-text-opacity);
+    }
+
+    &:disabled::before {
+      background-color: var(--_disabled-container-color);
+      opacity: var(--_disabled-container-opacity);
     }
 
     @media (forced-colors: active) {
@@ -111,7 +122,17 @@
 
   .md3-button,
   .md3-button__ripple {
-    border-radius: var(--_container-shape);
+    border-start-start-radius: var(--_container-shape-start-start);
+    border-start-end-radius: var(--_container-shape-start-end);
+    border-end-start-radius: var(--_container-shape-end-start);
+    border-end-end-radius: var(--_container-shape-end-end);
+  }
+
+  .md3-button::after,
+  .md3-button::before,
+  md-elevation,
+  .md3-button__ripple {
+    z-index: -1; // Place behind content
   }
 
   // TODO(b/181413732): Verify token below are named correctly
@@ -130,49 +151,7 @@
   }
 }
 
-@function flatten-disabled-colors($tokens) {
-  @return color.join-color-and-opacity-pairs(
-    $tokens,
-    (
-      (
-        color-key: 'disabled-container-color',
-        opacity-key: 'disabled-container-opacity'
-      ),
-      (
-        color-key: 'disabled-label-text-color',
-        opacity-key: 'disabled-label-text-opacity'
-      ),
-      (
-        color-key: 'with-icon-disabled-icon-color',
-        opacity-key: 'with-icon-disabled-icon-opacity'
-      ),
-      (
-        color-key: 'disabled-outline-color',
-        opacity-key: 'disabled-outline-opacity'
-      )
-    )
-  );
-}
-
-@function remove-unsupported-tokens($tokens) {
-  // b/193825150: Text and Outlined Button don't have `container-shadow-color`,
-  // leaving `container-elevation` useless.
-  @if not map.get($tokens, 'container-shadow-color') {
-    $tokens: map.remove($tokens, 'container-elevation');
-  }
-
-  $unsupported-tokens: (
-    // TODO(b/233225796): Clean up this removal of `dragged` tokens.
-    'dragged-container-elevation',
-    'dragged-label-text-color',
-    'dragged-state-layer-color',
-    'dragged-state-layer-opacity',
-    'with-icon-dragged-icon-color',
-    // b/189346077#comment2: `label-text-line-height` is included in token set
-    // "just in case", but it's okay to ignore.
-    'label-text-line-height',
-    // b/203778922: `label-text-type` used by other platforms but not web.
-    'label-text-type'
-  );
-  @return map.remove($tokens, $unsupported-tokens);
+:root {
+  --md-filled-button-container-shape-start-start: 12px;
+  --md-filled-button-container-shape: 8px;
 }
